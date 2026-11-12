@@ -1,0 +1,9 @@
+{
+  "id": "spawn_flood",
+  "name": "Spawn Flood",
+  "version": "0.0.1",
+  "entry": "mod.py",
+  "reads": ["tick"],
+  "commands": ["spawn"],
+  "subscriptions": ["on_tick"]
+}

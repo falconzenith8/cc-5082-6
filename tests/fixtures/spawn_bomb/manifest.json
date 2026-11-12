@@ -1,0 +1,9 @@
+{
+  "id": "spawn_bomb",
+  "name": "Spawn Bomb",
+  "version": "0.0.1",
+  "entry": "mod.py",
+  "reads": ["tick", "spawned_count"],
+  "commands": ["spawn"],
+  "subscriptions": ["on_tick", "on_spawn"]
+}

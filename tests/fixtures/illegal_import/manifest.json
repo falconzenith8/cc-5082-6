@@ -1,0 +1,9 @@
+{
+  "id": "illegal_import",
+  "name": "Import Smuggler",
+  "version": "0.0.1",
+  "entry": "mod.py",
+  "reads": ["score"],
+  "commands": ["add_score"],
+  "subscriptions": ["on_score"]
+}

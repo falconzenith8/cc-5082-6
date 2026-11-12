@@ -1,0 +1,9 @@
+{
+  "id": "thrifty",
+  "name": "Thrifty Rules",
+  "version": "1.0.0",
+  "entry": "mod.py",
+  "reads": ["gems", "resource_cost", "multiplier", "tick", "lives", "score"],
+  "commands": ["set_resource_cost", "set_multiplier", "add_score", "set_revive"],
+  "subscriptions": ["on_tick", "on_score", "on_death"]
+}

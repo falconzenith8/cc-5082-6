@@ -1,0 +1,9 @@
+{
+  "id": "wrong_event",
+  "name": "Wrong Event",
+  "version": "0.0.1",
+  "entry": "mod.py",
+  "reads": ["tick"],
+  "commands": ["set_revive"],
+  "subscriptions": ["on_tick", "on_death"]
+}

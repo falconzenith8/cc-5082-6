@@ -1,0 +1,9 @@
+{
+  "id": "overdraw",
+  "name": "Gem Overdraw",
+  "version": "0.0.1",
+  "entry": "mod.py",
+  "reads": ["gems", "tick"],
+  "commands": ["consume_gems"],
+  "subscriptions": ["on_tick"]
+}

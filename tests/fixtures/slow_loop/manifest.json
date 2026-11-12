@@ -1,0 +1,9 @@
+{
+  "id": "slow_loop",
+  "name": "Slow Loop",
+  "version": "0.0.1",
+  "entry": "mod.py",
+  "reads": ["tick"],
+  "commands": ["add_score"],
+  "subscriptions": ["on_tick"]
+}

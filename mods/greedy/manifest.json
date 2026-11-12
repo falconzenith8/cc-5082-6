@@ -1,0 +1,9 @@
+{
+  "id": "greedy",
+  "name": "Greedy Risk",
+  "version": "1.0.0",
+  "entry": "mod.py",
+  "reads": ["score", "multiplier", "gems", "lives", "tick", "last_event", "score_events"],
+  "commands": ["set_multiplier", "add_score", "consume_gems", "set_revive", "spawn"],
+  "subscriptions": ["on_score", "on_death", "on_tick"]
+}
