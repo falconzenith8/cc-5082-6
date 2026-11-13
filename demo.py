@@ -8,16 +8,20 @@ Shows, in order:
   3. mid-level enable/disable with rules changing immediately
   4. illegal mod rejection and runtime limit interruptions, each with
      the retained ModContext proving what happened
+  5. recovery: a suspended mod can be readmitted, history stays
+  6. unload releases the generation; same-name reinstall gets a new one
 """
 
+import gc
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from modhost import Host, load_mod, run_scenario, validate
-from modhost.errors import LoadError
+from modhost.errors import LoadError, StaleGeneration
 from modhost.limits import Limits
+from modhost.lifecycle import capture_generation_probe, structural_reclamation
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
@@ -119,6 +123,36 @@ def main():
     print(f"suspended before={before['suspended']} after={after['suspended']}")
     print(f"dispatch counters preserved: {after['dispatches'] == before['dispatches']} "
           f"({after['dispatches']} dispatches)")
+    host.close()
+
+    banner("6. Unload releases the generation; same-name reinstall is a new one")
+    host = fresh()
+    mod_id, namespace, manifest = load_mod(os.path.join(ROOT, "mods", "greedy"))
+    host.register(mod_id, namespace, manifest)
+    probe = capture_generation_probe(host, mod_id)
+    host.begin_level()
+    host.award_score(100)
+    old_api = host.apis[mod_id]
+    gen_before = host.context(mod_id)["generation"]
+    host.unload(mod_id)
+    del namespace
+    gc.collect()
+    reclaim = probe.report()
+    print(f"unloaded generation {gen_before}: references reclaimed={reclaim['reclaimed']}")
+    print(f"structural invariants: {structural_reclamation(host)['ok']}")
+    try:
+        old_api.submit({"cmd": "add_score", "amount": 1})
+    except StaleGeneration as exc:
+        print(f"old API rejected after unload: {exc.kind}")
+    mod_id, namespace2, manifest2 = load_mod(
+        os.path.join(ROOT, "mods", "greedy"),
+        overrides={"version": "2.0.0", "entry": "mod_v2.py"},
+    )
+    host.register(mod_id, namespace2, manifest2)
+    print(f"reinstalled as generation {host.context(mod_id)['generation']} "
+          f"version {host.context(mod_id)['version']}")
+    host.award_score(100)
+    print(f"level effect now comes from v2: multiplier={host.engine.state.multiplier}")
     host.close()
 
 

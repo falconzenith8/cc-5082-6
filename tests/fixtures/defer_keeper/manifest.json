@@ -1,0 +1,9 @@
+{
+  "id": "defer_keeper",
+  "name": "Deferred Keeper",
+  "version": "1.0.0",
+  "entry": "mod.py",
+  "reads": ["tick", "score", "resource_cost"],
+  "commands": ["add_score", "spawn", "set_resource_cost"],
+  "subscriptions": ["on_tick", "on_spawn", "on_score"]
+}

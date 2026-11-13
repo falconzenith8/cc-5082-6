@@ -51,3 +51,22 @@ class ModCrashed(Violation):
     def __init__(self, mod_id, exc_type, message):
         super().__init__(mod_id, "crash", f"{exc_type}: {message}")
         self.exc_type = exc_type
+
+
+class StaleGeneration(Violation):
+    """A script callback or API handle from a retired mod generation tried
+    to act against a newer running instance."""
+
+    def __init__(self, mod_id, api_generation, current_generation, api_epoch, current_epoch):
+        super().__init__(
+            mod_id,
+            "stale_generation",
+            (
+                f"api generation {api_generation}/epoch {api_epoch} is no longer current "
+                f"(host generation {current_generation}/epoch {current_epoch})"
+            ),
+        )
+        self.api_generation = api_generation
+        self.current_generation = current_generation
+        self.api_epoch = api_epoch
+        self.current_epoch = current_epoch

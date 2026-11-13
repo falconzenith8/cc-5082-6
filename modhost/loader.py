@@ -51,8 +51,17 @@ def _validate_manifest(mod_id, manifest):
         raise LoadError(f"[{mod_id}] entry path {entry!r} is not a safe relative .py path")
 
 
-def load_mod(path):
-    """Load one mod directory. Returns (mod_id, namespace, manifest)."""
+def load_mod(path, overrides=None):
+    """Load one mod directory. Returns (mod_id, namespace, manifest).
+
+    `overrides` is a host-side (not mod-provided) mapping that may replace
+    the manifest version/entry, used to load a newer build of the same
+    mod id. Only the two white-listed fields are accepted.
+    """
+    overrides = dict(overrides or {})
+    unknown_overrides = set(overrides) - {"version", "entry"}
+    if unknown_overrides:
+        raise LoadError(f"unsupported manifest overrides: {sorted(unknown_overrides)}")
     path = os.path.abspath(path)
     mod_id = os.path.basename(path)
     if not _ID_RE.match(mod_id):
@@ -65,6 +74,8 @@ def load_mod(path):
             manifest = json.load(handle)
     except json.JSONDecodeError as exc:
         raise LoadError(f"[{mod_id}] manifest is not valid JSON: {exc}") from exc
+    if overrides:
+        manifest.update(overrides)
     _validate_manifest(mod_id, manifest)
 
     entry_path = os.path.abspath(os.path.join(path, manifest["entry"]))

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mod Host Panel</title>
+<style>
+  body { font-family: ui-monospace, Menlo, Consolas, monospace; margin: 0; background: #101418; color: #d7e0ea; }
+  header { padding: 12px 20px; background: #182029; border-bottom: 1px solid #2a3644; }
+  header h1 { margin: 0; font-size: 16px; }
+  header p { margin: 4px 0 0; font-size: 12px; color: #8fa3b8; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px; }
+  section { background: #161d25; border: 1px solid #2a3644; border-radius: 8px; padding: 14px; }
+  section h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #9db4cc; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #243040; }
+  th { color: #8fa3b8; font-weight: 600; }
+  button, select { font: inherit; font-size: 12px; background: #22303f; color: #d7e0ea;
+    border: 1px solid #3a4d63; border-radius: 5px; padding: 6px 10px; margin: 3px 4px 3px 0; cursor: pointer; }
+  button:hover { background: #2c3f53; }
+  button:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; }
+  .on { background: #14432a; color: #76e0a0; }
+  .off { background: #4a2326; color: #f0a0a4; }
+  .retired { background: #3a3320; color: #e6c875; }
+  .feed { font-size: 12px; max-height: 260px; overflow: auto; }
+  .feed .ok { color: #76e0a0; }
+  .feed .bad { color: #f0a0a4; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; background: #10171e;
+    border: 1px solid #243040; border-radius: 6px; padding: 8px; max-height: 320px; overflow: auto; }
+  .full { grid-column: 1 / 3; }
+  label { font-size: 12px; color: #9db4cc; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mod Host Panel — kernel-driven controls</h1>
+  <p>Every action is executed by the mod-host kernel. The page only renders host state; rule effects and execution boundaries come from host computation.</p>
+</header>
+<main>
+  <section>
+    <h2>Level state</h2>
+    <table id="state"><tbody></tbody></table>
+    <h2 style="margin-top:14px">Kernel controls</h2>
+    <div class="row">
+      <select id="catalog"></select>
+      <button onclick="act({action:'load', name:catalog.value})">Load mod case</button>
+    </div>
+    <div class="row">
+      <button onclick="act({action:'score', amount:100})">Trigger on_score +100</button>
+      <button onclick="act({action:'tick'})">Trigger on_tick</button>
+      <button onclick="act({action:'death'})">Trigger on_death</button>
+      <button onclick="act({action:'reset_level'})">Begin level</button>
+    </div>
+    <div class="row">
+      <select id="modpick"></select>
+      <button onclick="withMod('enable')">Enable</button>
+      <button onclick="withMod('disable')">Disable</button>
+      <button onclick="withMod('unload')">Unload &amp; release</button>
+      <button onclick="act({action:'switch_scene', scene:'minimal_b'})">Switch scene</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Loaded generations</h2>
+    <table id="mods"><thead><tr>
+      <th>mod</th><th>version</th><th>gen / epoch</th><th>state</th><th>subscriptions</th><th>dispatches</th>
+    </tr></thead><tbody></tbody></table>
+    <h2 style="margin-top:14px">Deferred callbacks / last settlement</h2>
+    <pre id="deferred"></pre>
+  </section>
+
+  <section class="full">
+    <h2>Replayable lifecycle cases</h2>
+    <div class="row">
+      <select id="cases"></select>
+      <button onclick="runSequence()">Run case on a fresh minimal host</button>
+    </div>
+    <pre id="sequence"></pre>
+  </section>
+
+  <section>
+    <h2>Failure feedback (host ledger)</h2>
+    <div id="feedback" class="feed"></div>
+  </section>
+  <section>
+    <h2>Stale drops &amp; retired generations</h2>
+    <pre id="stale"></pre>
+  </section>
+</main>
+<script>
+let view = null;
+const $ = (id) => document.getElementById(id);
+
+async function refresh() {
+  const res = await fetch('/api/state');
+  view = await res.json();
+  render();
+}
+
+async function act(payload) {
+  const res = await fetch('/api/action', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    // Failure is recorded by the host and surfaced back here; the local
+    // view is refreshed from kernel state rather than edited optimistically.
+  }
+  await refresh();
+}
+
+function withMod(action) {
+  const mod = $('modpick').value;
+  if (mod) act({action, mod});
+}
+
+async function runSequence() {
+  const res = await fetch('/api/action', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'run_sequence', label: $('cases').value}),
+  });
+  const data = await res.json();
+  $('sequence').textContent = JSON.stringify(data, null, 2);
+  await refresh();
+}
+
+function tag(mod) {
+  if (mod.retired) return '<span class="tag retired">retired</span>';
+  if (mod.suspended) return '<span class="tag off">suspended</span>';
+  return mod.enabled
+    ? '<span class="tag on">enabled</span>'
+    : '<span class="tag off">disabled</span>';
+}
+
+function render() {
+  const s = view.state;
+  $('state').querySelector('tbody').innerHTML = [
+    ['scene', view.scene_id], ['epoch', view.epoch], ['tick', s.tick],
+    ['score', s.score], ['multiplier', s.multiplier], ['lives', s.lives],
+    ['gems', s.gems], ['resource_cost', s.resource_cost],
+    ['spawned', s.spawned_count], ['events', s.event_count],
+  ].map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
+
+  const catalog = $('catalog');
+  catalog.innerHTML = view.catalog.map((n) => `<option>${n}</option>`).join('');
+  const mods = Object.values(view.mods);
+  $('modpick').innerHTML = mods.map((m) => `<option>${m.mod_id}</option>`).join('');
+  $('mods').querySelector('tbody').innerHTML = mods.map((m) => `<tr>
+    <td>${m.mod_id}</td><td>${m.version}</td>
+    <td>${m.generation} / ${m.epoch}</td><td>${tag(m)}</td>
+    <td>${m.handler_events.join(', ')}</td><td>${m.dispatches}</td></tr>`).join('');
+
+  $('cases').innerHTML = view.controls.find((c) => c.id === 'run_sequence')
+    .cases.map((c) => `<option>${c}</option>`).join('');
+
+  $('deferred').textContent = JSON.stringify({
+    deferred_queued: view.deferred,
+    last_settlement: view.last_settlement,
+  }, null, 2);
+  $('stale').textContent = JSON.stringify({
+    stale_drops: view.stale_drops,
+    retired: view.retired,
+    violations: view.violations,
+  }, null, 2);
+  $('feedback').innerHTML = view.feedback.map((f) => f.level === 'error'
+    ? `<div class="bad">ERROR ${f.action}: ${f.kind} — ${f.message}</div>`
+    : `<div class="ok">OK ${f.action}</div>`).join('');
+}
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

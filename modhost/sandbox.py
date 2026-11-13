@@ -10,6 +10,7 @@ Two layers:
 
 import ast
 import signal
+import threading
 
 from .errors import LoadError, ModTimeoutExceeded
 
@@ -162,33 +163,44 @@ class AlarmTimer:
 
     The host installs the handler once for the level; arm() replaces the
     itimer with a shorter deadline and remembers the outer remaining time,
-    disarm() restores it. Only usable on the main thread, which is where
-    the host dispatches events.
+    disarm() restores it. Signals only exist on the main thread: hosts
+    created on a worker thread (for example the graphical panel's isolated
+    sequence runner) degrade to a no-op timer instead of failing to start.
     """
 
     def __init__(self):
         self._stack = []
+        self._signals_available = threading.current_thread() is threading.main_thread()
 
     def install(self):
-        signal.signal(signal.SIGALRM, self._on_alarm)
+        if self._signals_available:
+            signal.signal(signal.SIGALRM, self._on_alarm)
 
     def shutdown(self):
-        signal.setitimer(signal.ITIMER_REAL, 0)
+        if self._signals_available:
+            signal.setitimer(signal.ITIMER_REAL, 0)
         self._stack.clear()
-        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        if self._signals_available:
+            signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
     def arm(self, seconds):
+        if not self._signals_available:
+            self._stack.append(None)
+            return
         old_interval, old_remaining = signal.setitimer(
             signal.ITIMER_REAL, max(seconds, 0.001)
         )
         self._stack.append(old_remaining if old_remaining > 0 else None)
 
     def disarm(self):
-        signal.setitimer(signal.ITIMER_REAL, 0)
         if not self._stack:
             return
-        outer = self._stack.pop()
-        if outer is not None and self._stack:
+        self._stack.pop()
+        if not self._signals_available:
+            return
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        outer = self._stack[-1] if self._stack else None
+        if outer is not None:
             signal.setitimer(signal.ITIMER_REAL, max(outer, 0.001))
 
     def _on_alarm(self, signum, frame):

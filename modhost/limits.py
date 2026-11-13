@@ -20,6 +20,8 @@ class Limits:
     spawns_per_event: int = 6
     # Commands one mod may submit in a single hook.
     commands_per_hook: int = 16
+    # Deferred callbacks one mod generation may have queued at once.
+    deferred_per_mod: int = 8
 
 
 LIMITS = Limits()

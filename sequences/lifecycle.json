@@ -1,0 +1,56 @@
+[
+  {
+    "label": "load v1 and run a minimal level",
+    "steps": [
+      {"action": "load", "name": "greedy"},
+      {"action": "begin_level"},
+      {"action": "score", "amount": 100},
+      {"action": "tick"},
+      {"action": "score", "amount": 50}
+    ]
+  },
+  {
+    "label": "disable, confirm no events, unload and reclaim",
+    "steps": [
+      {"action": "load", "name": "greedy"},
+      {"action": "begin_level"},
+      {"action": "score", "amount": 100},
+      {"action": "disable", "mod": "greedy"},
+      {"action": "score", "amount": 50},
+      {"action": "unload", "mod": "greedy"},
+      {"action": "check_reclaim", "mod": "greedy"}
+    ]
+  },
+  {
+    "label": "same-name new version reinstall under one minimal level",
+    "steps": [
+      {"action": "load", "name": "greedy"},
+      {"action": "begin_level"},
+      {"action": "score", "amount": 100},
+      {"action": "unload", "mod": "greedy"},
+      {"action": "load", "name": "greedy", "entry": "mod_v2.py", "version": "2.0.0"},
+      {"action": "score", "amount": 100}
+    ]
+  },
+  {
+    "label": "scene switch invalidates old-epoch callbacks",
+    "steps": [
+      {"action": "load", "name": "defer_keeper", "base": "tests/fixtures"},
+      {"action": "begin_level"},
+      {"action": "tick"},
+      {"action": "switch_scene", "scene": "level_b"},
+      {"action": "tick"}
+    ]
+  },
+  {
+    "label": "unload one mod without dropping another mod's work",
+    "steps": [
+      {"action": "load", "name": "greedy"},
+      {"action": "load", "name": "thrifty"},
+      {"action": "begin_level"},
+      {"action": "score", "amount": 100},
+      {"action": "unload", "mod": "greedy"},
+      {"action": "score", "amount": 100}
+    ]
+  }
+]
